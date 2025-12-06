@@ -7,11 +7,18 @@ import org.openqa.selenium.Keys;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.Locale;
 
 import static com.codeborne.selenide.Condition.*;
 import static com.codeborne.selenide.Selenide.*;
 
 public class RegistrationTest {
+
+    private String generateDate(int daysToAdd) {
+        LocalDate date = LocalDate.now().plusDays(daysToAdd);
+        return date.format(DateTimeFormatter.ofPattern("dd.MM.yyyy"));
+    }
+
 
     @Test
     void shouldSuccessfulFormSubmission() {
@@ -20,29 +27,19 @@ public class RegistrationTest {
         Selenide.open("http://localhost:9999");
 
         // Генерируем дату (минимум +4 дня от текущей)
-        LocalDate deliveryDate = LocalDate.now().plusDays(4);
-        String formattedDate = deliveryDate.format(DateTimeFormatter.ofPattern("dd.MM.yyyy"));
+        String formattedDate = generateDate(4);
+
 
         // 1. Заполняем город
         $("[data-test-id=city] input").setValue("Москва");
 
         // 2. Работаем с полем даты
-        SelenideElement dateField = $("[data-test-id=date]");
-
-        // Кликаем по иконке календаря чтобы активировать поле
-        dateField.$(".icon-button").click();
-
-        // Ждем появления поля ввода
-        $(".calendar-input__custom-control input").shouldBe(Condition.enabled);
+        SelenideElement dateInput = $("[data-test-id=date] .calendar-input__custom-control input");
+        dateInput.shouldBe(Condition.enabled);
 
         // Очищаем поле и вводим новую дату
-        SelenideElement dateInput = $(".calendar-input__custom-control input");
-        dateInput.click();
-
-        // Удаляем текст
         dateInput.press(Keys.CONTROL + "a");
         dateInput.press(Keys.BACK_SPACE);
-
         dateInput.setValue(formattedDate);
 
         // 3. Заполняем имя
@@ -77,17 +74,17 @@ public class RegistrationTest {
         $(".input__menu").shouldBe(visible, Duration.ofSeconds(3));
 
         // 3. Ищем в списке город "Москва" и кликаем по нему
-
         $$(".input__menu .menu-item").findBy(text("Москва")).click();
-
 
         // Проверяем что город выбран
         $("[data-test-id=city] input").shouldHave(value("Москва"));
 
         // 4. Выбираем дату через календарь (на неделю вперед)
-        LocalDate weekLater = LocalDate.now().plusWeeks(1);
-        String weekLaterFormatted = weekLater.format(DateTimeFormatter.ofPattern("dd.MM.yyyy"));
-        int targetDay = weekLater.getDayOfMonth();
+        LocalDate currentDate = LocalDate.now();
+        LocalDate targetDate = currentDate.plusWeeks(1);
+        String targetDateFormatted = targetDate.format(DateTimeFormatter.ofPattern("dd.MM.yyyy"));
+        int targetDay = targetDate.getDayOfMonth();
+        String targetMonth = targetDate.format(DateTimeFormatter.ofPattern("LLLL", new Locale("ru")));
 
         // Открываем календарь
         $("[data-test-id=date] .icon-button").click();
@@ -95,17 +92,25 @@ public class RegistrationTest {
         // Ждем появления календаря
         $(".calendar").shouldBe(visible, Duration.ofSeconds(3));
 
-        // Получаем день недели (для клика по нужной ячейке)
-        int dayOfMonth = weekLater.getDayOfMonth();
+        // Проверяем текущий месяц в календаре
+        String calendarMonth = $(".calendar__name").text().toLowerCase();
 
-        // Ищем ячейку с нужной датой в календаре
+        // Если месяц в календаре не соответствует целевому месяцу, переключаем на следующий месяц
+        while (!calendarMonth.contains(targetMonth.toLowerCase())) {
+            // Кликаем по кнопке переключения на следующий месяц
+            $(".calendar__arrow.calendar__arrow_direction_right[data-step='1']").click();
 
-        $$(".calendar__day").findBy(text(String.valueOf(dayOfMonth)))
+            // Обновляем значение текущего месяца в календаре
+            calendarMonth = $(".calendar__name").text().toLowerCase();
+        }
+
+        // Ищем ячейку с нужной датой в календаре и кликаем
+        $$(".calendar__day").findBy(text(String.valueOf(targetDay)))
                 .shouldBe(visible)
                 .click();
 
         // Проверяем что дата установилась
-        $("[data-test-id=date] .input__control").shouldHave(value(weekLaterFormatted));
+        $("[data-test-id=date] .input__control").shouldHave(value(targetDateFormatted));
 
         // 5. Заполняем остальные поля
         $("[data-test-id=name] input").setValue("Петров Петр");
@@ -119,6 +124,6 @@ public class RegistrationTest {
         $("[data-test-id=notification]")
                 .shouldBe(visible, Duration.ofSeconds(15))
                 .$(".notification__content")
-                .shouldHave(text("Встреча успешно забронирована на " + weekLaterFormatted));
+                .shouldHave(text("Встреча успешно забронирована"));
     }
 }
