@@ -34,7 +34,7 @@ public class RegistrationTest {
         $("[data-test-id=city] input").setValue("Москва");
 
         // 2. Работаем с полем даты
-        SelenideElement dateInput = $("[data-test-id=date] .calendar-input__custom-control input");
+        SelenideElement dateInput = $("[data-test-id=date] input");
         dateInput.shouldBe(Condition.enabled);
 
         // Очищаем поле и вводим новую дату
@@ -95,13 +95,19 @@ public class RegistrationTest {
         // Проверяем текущий месяц в календаре
         String calendarMonth = $(".calendar__name").text().toLowerCase();
 
+        // Добавляем счетчик итераций
+        int maxAttempts = 12; // максимум на год вперед
+        int attempts = 0;
+
         // Если месяц в календаре не соответствует целевому месяцу, переключаем на следующий месяц
-        while (!calendarMonth.contains(targetMonth.toLowerCase())) {
+        while (!calendarMonth.contains(targetMonth.toLowerCase()) && attempts < maxAttempts) {
             // Кликаем по кнопке переключения на следующий месяц
             $(".calendar__arrow.calendar__arrow_direction_right[data-step='1']").click();
 
+
             // Обновляем значение текущего месяца в календаре
             calendarMonth = $(".calendar__name").text().toLowerCase();
+            attempts++;
         }
 
         // Ищем ячейку с нужной датой в календаре и кликаем
